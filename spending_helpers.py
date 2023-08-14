@@ -165,3 +165,4 @@ def cibc_cc_parser(bill: str) -> pd.DataFrame:
     clean["Amt"] = clean["Amt"].apply(lambda c: -float(c.replace("$", "")))
     
     return clean
+    
