@@ -123,3 +123,45 @@ def neo_cc_parser(bill: str) -> pd.DataFrame:
     clean["Amt"] = clean["Amt"].apply(lambda c: -float(c.replace("$", "")))
     
     return clean
+
+def cibc_cc_parser(bill: str) -> pd.DataFrame:
+    """Transforms a CIBC credit card statement in PDF form into a dataframe.
+    NOTE: Basic Neo PDF statement encoding is screwed up right now. Need to 
+    run the raw statement through an OCR converter first (e.g., convert to 
+    .docx then back to .pdf).
+    
+    bill: PDF of a Neo credit card statement.
+    return: DataFrame of transaction date, description, and amount.
+    
+    Test cases vary by data.
+    """
+    # Convert PDF to string, split into list of rows, strip whitespace.
+    raw = pdf.open(bill)
+    full_text = []
+    for page in raw.pages:
+        full_text += page.extract_text(layout = True).split("\n")
+    stripped = [i.strip() for i in full_text]
+    
+    # Regex identify which rows include meaningful data.
+    spends = []
+    for j in stripped:
+        if bool(re.match("[A-Z][a-z]{2} \d[^,]{2}", j)):
+            spends.append(j)
+    
+    # Split rows into usabe columns.
+    clean = []
+    for m in [k.split() for k in spends]:
+        holder = []
+        holder.append(''.join((m[0].upper(), m[1])))
+        holder.append(''.join(m[4:-1]))
+        holder.append(m[-1])
+        clean.append(holder)
+    
+    # Convert to usable datatypes.
+    clean = pd.DataFrame(clean).rename(columns = {0: "Date", 1: "Desc", 2:"Amt"})
+    clean["Date"] = clean["Date"].apply(date_parser)
+    clean["Amt"] = clean["Amt"].apply(lambda a: a.replace("O", "0"))
+    clean["Amt"] = clean["Amt"].apply(lambda b: b.replace(",", ""))
+    clean["Amt"] = clean["Amt"].apply(lambda c: -float(c.replace("$", "")))
+    
+    return clean
